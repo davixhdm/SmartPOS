@@ -1,11 +1,11 @@
-// Login
+// pages/auth/Login.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { authApi } from "../../api/authApi";
 import { storage } from "../../utils/storage";
-import { Store, ArrowLeft } from "lucide-react";
+import { Store } from "lucide-react";
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export const Login = () => {
 
       if (res.activated) {
         storage.set("smartpos_token", res.token);
-        storage.set("smartpos_user", res.user);
+        storage.set("smartpos_user", { ...res.user, businessName: res.businessName });
         storage.set("smartpos_clientId", res.clientId);
         navigate("/app/dashboard");
       } else {
@@ -43,10 +43,6 @@ export const Login = () => {
   return (
     <div className="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-600 mb-6">
-          <ArrowLeft className="w-4 h-4" /> Back to Home
-        </Link>
-
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <Store className="w-7 h-7 text-primary-600" />
