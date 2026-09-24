@@ -27,6 +27,34 @@ const POLL_TIMEOUT_MS = 90000;
 
 type MpesaStep = 'idle' | 'phone' | 'waiting' | 'success' | 'failed';
 
+/**
+ * Normalize a Kenyan phone number to `254XXXXXXXXX`.
+ */
+function sanitizePhone(input: string): string | null {
+  const digits = String(input || '').replace(/\D/g, '');
+
+  if (digits.length === 10 && digits.startsWith('0')) {
+    return `254${digits.slice(1)}`;
+  }
+  if (digits.length === 9) {
+    return `254${digits}`;
+  }
+  if (digits.length === 12 && digits.startsWith('254')) {
+    return digits;
+  }
+  if (digits.length === 13 && digits.startsWith('2540')) {
+    return `254${digits.slice(4)}`;
+  }
+  return null;
+}
+
+function prettyPhone(p: string): string {
+  if (p.startsWith('254') && p.length === 12) {
+    return `0${p.slice(3, 6)} ${p.slice(6, 9)} ${p.slice(9)}`;
+  }
+  return p;
+}
+
 export interface PaymentModalProps {
   open: boolean;
   onClose: () => void;
@@ -41,7 +69,7 @@ export interface PaymentModalProps {
   customerName?: string;
   discount?: number;
   vatAmount?: number;
-  onPay: (method: 'cash' | 'card', amountPaid?: number) => void;
+  onPay: (method: 'cash' | 'mpesa' | 'card', amountPaid?: number) => void;
   onManualMpesa: () => void;
   onMpesaSuccess: (saleId: string, saleNumber: string) => void;
 }
@@ -69,6 +97,7 @@ export function PaymentModal({
   const [mpesaMessage, setMpesaMessage] = useState('');
   const [mpesaError, setMpesaError] = useState('');
   const [saleNumber, setSaleNumber] = useState('');
+  const [sentTo, setSentTo] = useState('');
   const [copied, setCopied] = useState(false);
 
   const pollRef = useRef<number | null>(null);
@@ -86,6 +115,7 @@ export function PaymentModal({
       setMpesaMessage('');
       setMpesaError('');
       setSaleNumber('');
+      setSentTo('');
       setCopied(false);
     }
     return () => {
@@ -120,7 +150,9 @@ export function PaymentModal({
     timeoutRef.current = window.setTimeout(() => {
       stopPolling();
       setMpesaStep('failed');
-      setMpesaError('No response from the customer. Check the phone and try again.');
+      setMpesaError(
+        'No response from the customer. Check the phone and try again.'
+      );
     }, POLL_TIMEOUT_MS);
 
     pollRef.current = window.setInterval(async () => {
@@ -151,8 +183,11 @@ export function PaymentModal({
   };
 
   const handleMpesaSubmit = async () => {
-    if (!phone.trim()) {
-      setMpesaError('Enter the customer phone number');
+    const normalized = sanitizePhone(phone);
+    if (!normalized) {
+      setMpesaError(
+        'Enter a valid Kenyan number (e.g. 0712 345 678 or 254712345678)'
+      );
       return;
     }
     if (cartItems.length === 0) {
@@ -163,10 +198,11 @@ export function PaymentModal({
     setMpesaError('');
     setMpesaStep('waiting');
     setMpesaMessage('Sending request to the customer…');
+    setSentTo(normalized);
 
     try {
       const res = await paymentApi.stkPush({
-        phone: phone.trim(),
+        phone: normalized,
         items: cartItems,
         discount,
         vatAmount,
@@ -188,6 +224,7 @@ export function PaymentModal({
     setMpesaStep('phone');
     setMpesaError('');
     setMpesaMessage('');
+    setSentTo('');
   };
 
   const handleCopyShortcode = async () => {
@@ -197,7 +234,7 @@ export function PaymentModal({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // clipboard may fail silently on http or unsupported browsers
+      /* clipboard may fail silently on http or unsupported browsers */
     }
   };
 
@@ -283,13 +320,21 @@ export function PaymentModal({
                 <div className="text-xs text-muted-foreground">
                   Customer sends to Paybill{' '}
                   {shortcode ? (
-                    <button
-                      type="button"
+                    <span
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleCopyShortcode();
                       }}
-                      className="inline-flex items-center gap-1 font-mono text-success hover:underline"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleCopyShortcode();
+                        }
+                      }}
+                      className="inline-flex cursor-pointer items-center gap-1 font-mono text-success hover:underline"
                     >
                       {shortcode}
                       {copied ? (
@@ -297,7 +342,7 @@ export function PaymentModal({
                       ) : (
                         <Copy className="h-3 w-3" />
                       )}
-                    </button>
+                    </span>
                   ) : (
                     <span className="italic">shortcode not configured</span>
                   )}
@@ -374,6 +419,14 @@ export function PaymentModal({
             <p className="text-xs text-muted-foreground">
               {mpesaMessage || 'Check the customer phone to enter their PIN'}
             </p>
+            {sentTo ? (
+              <p className="text-xs text-muted-foreground">
+                Sent to{' '}
+                <span className="font-mono text-foreground">
+                  {prettyPhone(sentTo)}
+                </span>
+              </p>
+            ) : null}
             {saleNumber ? (
               <p className="font-mono text-xs text-muted-foreground">
                 {saleNumber}
@@ -397,20 +450,13 @@ export function PaymentModal({
                 <CheckCircle2 className="h-8 w-8 text-success" />
               </div>
             </div>
-            <p className="text-sm font-medium text-success">
-              Payment received
-            </p>
+            <p className="text-sm font-medium text-success">Payment received</p>
             {saleNumber ? (
               <p className="font-mono text-xs text-muted-foreground">
                 {saleNumber}
               </p>
             ) : null}
-            <Button
-              type="button"
-              variant="success"
-              onClick={onClose}
-              fullWidth
-            >
+            <Button type="button" variant="success" onClick={onClose} fullWidth>
               Done
             </Button>
           </div>

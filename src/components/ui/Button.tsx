@@ -20,9 +20,9 @@ const variants: Record<ButtonVariant, string> = {
   secondary:
     'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring',
   outline:
-    'border border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
+    'border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
   ghost:
-    'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
+    'text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring',
   destructive:
     'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-ring',
   success:

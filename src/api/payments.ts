@@ -65,9 +65,26 @@ export interface PublicStkResponse {
   message: string;
 }
 
+export interface PublicStkStatusResponse {
+  status: StkStatus;
+  invoiceNumber: string | null;
+  invoiceStatus: string | null;
+  amountPaid: number;
+  amountDue: number;
+  currency: string;
+  receipt: string | null;
+}
+
 export const publicPaymentApi = {
   sendStkForInvoice: (payload: PublicStkInput) =>
     api
       .post<{ data: PublicStkResponse }>('/public/payments/stk/invoice', payload)
+      .then((r) => r.data.data),
+
+  stkStatus: (checkoutRequestId: string) =>
+    api
+      .get<{ data: PublicStkStatusResponse }>(
+        `/public/payments/stk/status/${checkoutRequestId}`
+      )
       .then((r) => r.data.data),
 };
