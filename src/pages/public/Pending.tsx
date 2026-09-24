@@ -11,7 +11,6 @@ import {
   Building2,
   Wallet,
   CheckCircle2,
-  Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSite } from '@/hooks/useSite';
@@ -128,15 +127,15 @@ export default function Pending() {
   const amountDue = invoice?.amountDue || 0;
   const currency = invoice?.currency || 'KES';
 
-  const inv = invoice as Record<string, unknown> | null;
+  // Cast through unknown so TS allows the index access
+  const inv = invoice as unknown as Record<string, unknown> | null;
   const invoiceNumber =
     (inv?.invoiceNumber as string) || (inv?.number as string) || '';
 
   const rawInstructions: Instruction[] = Array.isArray(
-    (invoice as { paymentInstructions?: Instruction[] } | null)?.paymentInstructions
+    (inv?.paymentInstructions as Instruction[] | undefined)
   )
-    ? ((invoice as unknown as { paymentInstructions: Instruction[] })
-        .paymentInstructions as Instruction[])
+    ? (inv!.paymentInstructions as Instruction[])
     : [];
 
   const manualMethods = rawInstructions.filter(
@@ -202,14 +201,13 @@ export default function Pending() {
             </div>
           )}
 
-          {/* Actions */}
           <div className="mt-6 flex flex-col gap-2.5">
             {canPay && (
               <Button
                 fullWidth
                 size="lg"
                 variant="success"
-                icon={<Smartphone size={16} />}
+                leftIcon={<Smartphone size={16} />}
                 onClick={() => setMpesaOpen(true)}
               >
                 Pay {formatMoney(amountDue, currency)} with M-Pesa
@@ -222,7 +220,7 @@ export default function Pending() {
                   fullWidth
                   variant="outline"
                   size="lg"
-                  icon={<FileText size={16} />}
+                  leftIcon={<FileText size={16} />}
                 >
                   View full invoice
                 </Button>
@@ -242,13 +240,12 @@ export default function Pending() {
               fullWidth
               variant="ghost"
               onClick={logout}
-              icon={<LogOut size={16} />}
+              leftIcon={<LogOut size={16} />}
             >
               Log out
             </Button>
           </div>
 
-          {/* Other payment methods */}
           {canPay && manualMethods.length > 0 && (
             <div className="mt-6 rounded-xl border border-border bg-muted/20 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -316,7 +313,6 @@ export default function Pending() {
             </div>
           )}
 
-          {/* Success banner */}
           {hasInvoice && isPaid && (
             <div className="mt-6 flex items-start gap-3 rounded-xl border border-success/30 bg-success/10 p-4">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
@@ -330,7 +326,6 @@ export default function Pending() {
             </div>
           )}
 
-          {/* Support */}
           <div className="mt-6 border-t border-border pt-5">
             <p className="text-center text-xs font-medium text-muted-foreground">
               Need help?
